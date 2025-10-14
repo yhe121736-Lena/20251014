@@ -11,6 +11,9 @@ let shakeOffsets = [];
 // 音效變數
 let popSound;
 
+// *** 新增：分數計數器 (score) ***
+let score = 0; 
+
 // 爆破粒子類別
 // 強化爆破粒子特效：增加數量、亮度、尺寸、慢速消失
 class Particle {
@@ -35,7 +38,7 @@ class Particle {
     this.y += this.vy;
     this.vx *= 0.91;
     this.vy *= 0.91;
-    this.alpha -= 7; // 慢慢消失
+    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
   }
   show() {
     fill(this.color[0], this.color[1], this.color[2], this.alpha);
@@ -73,6 +76,7 @@ class CircleParticle {
       min(255, color[2] + 30)
     ];
     this.alpha = 255;
+    this.decayRate = 1.4; // *** 設置 3 秒消失速率 ***
   }
   update() {
     this.x += this.vx;
@@ -80,10 +84,7 @@ class CircleParticle {
     this.vx *= 0.91;
     this.vy *= 0.91;
     // 讓粒子停留更久，減緩透明度衰減
-    if (this.alpha > 60) {
-      this.alpha -= 5;
-      if (this.alpha < 60) this.alpha = 60;
-    }
+    this.alpha -= this.decayRate; // *** 使用 3 秒消失速率 ***
   }
   show() {
     noStroke();
@@ -122,7 +123,7 @@ class BurstCircleParticle {
     this.y += this.vy;
     this.vx *= 0.93;
     this.vy *= 0.93;
-    this.alpha -= 2; // 更慢消失
+    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
   }
   show() {
     noStroke();
@@ -159,7 +160,7 @@ class BurstBoxParticle {
     this.y += this.vy;
     this.vx *= 0.92;
     this.vy *= 0.92;
-    this.alpha -= 6;
+    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
     this.rotation += this.rotationSpeed;
   }
   show() {
@@ -186,7 +187,7 @@ class FlashParticle {
     this.size = random(120, 260);
     this.color = color;
     this.alpha = 180;
-    this.decay = random(6, 12);
+    this.decay = 1.0; // 稍微快一點，確保閃光效果不會持續太久 (180/180=1s, 180/1.0=180幀=3s)
     this.angle = random(TWO_PI);
     this.rays = floor(random(8, 16));
   }
@@ -240,7 +241,7 @@ class ShardParticle {
     this.y += this.vy;
     this.vx *= 0.92;
     this.vy *= 0.92;
-    this.alpha -= 7;
+    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
     this.rotation += this.rotationSpeed;
   }
   show() {
@@ -281,22 +282,23 @@ class MegaBlastParticle {
       min(255, color[2] + 120)
     ];
     this.alpha = 255;
-    this.grow = random(1.02, 1.06);
-    this.shrink = random(0.96, 0.99);
+    this.grow = random(1.005, 1.015); // 稍微調慢生長速度以配合長壽命
+    this.shrink = random(0.985, 0.995); // 稍微調慢縮小速度
     this.life = 0;
-    this.maxLife = random(18, 32);
+    this.maxLife = random(180, 200); // *** 調整：壽命約 3 秒 (180 幀) ***
   }
   update() {
     this.x += this.vx;
     this.y += this.vy;
     this.vx *= this.shrink;
     this.vy *= this.shrink;
-    if (this.life < this.maxLife / 2) {
+    // 調整：在整個生命週期中緩慢地改變大小
+    if (this.life < this.maxLife / 4) {
       this.size *= this.grow;
-    } else {
+    } else if (this.life > this.maxLife * 0.75) {
       this.size *= this.shrink;
     }
-    this.alpha -= 8;
+    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
     this.life++;
   }
   show() {
@@ -370,7 +372,7 @@ function draw() {  //draw函式會一直重複執行，形成動畫效果
     strokeWeight(16 * shockwave.alpha/255);
     ellipse(shockwave.x, shockwave.y, shockwave.r, shockwave.r);
     shockwave.r += 32;
-    shockwave.alpha -= 18;
+    shockwave.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
     if (shockwave.alpha <= 0) shockwave = null;
     noStroke();
   }
@@ -446,7 +448,7 @@ function draw() {  //draw函式會一直重複執行，形成動畫效果
       megaBlastParticles.splice(i, 1);
     }
   }
-  
+  
   // 6. 繪製氣球
   noStroke(); // 取消外框線
   // 讓每個圓由下往上飄，越大越快，越小越慢，移出畫面頂端後從底部重新出現
@@ -480,22 +482,38 @@ function draw() {  //draw函式會一直重複執行，形成動畫效果
     rect(bx + boxSize*0.08, by + boxSize*0.08, boxSize*0.5, boxSize*0.18, 2);
   }
 
-  // 7. 繪製左上角數字 (在所有氣球之後，確保數字在氣球之上)
+  // *** 7. 繪製左上角數字 (浮水印) ***
   push();
-    // 數字顏色
-    fill(50); // 深灰色
+    // 數字顏色 (較淺的浮水印)
+    fill(100, 100, 100, 180); // 深灰色且有半透明度
     // 數字大小
     textSize(24);
     // 文字對齊方式：靠左對齊 (LEFT) 和 靠上對齊 (TOP)
     textAlign(LEFT, TOP); 
     // 繪製文字
-    let displayText = "414730191";
+    let watermarkText = "414730191";
     let margin = 15; // 距離邊緣 15 像素
     // 繪製座標：(margin, margin) 即可將文字頂部和左側內縮 margin 距離
-    text(displayText, margin, margin); 
+    text(watermarkText, margin, margin); 
   pop();
 
-  // 繪製星星的輔助函式
+  // *** 8. 繪製右上角分數 ***
+  push();
+    // 分數顏色
+    fill(50); // 深灰色
+    // 分數大小
+    textSize(32); // 將分數字體放大
+    // 文字對齊方式：靠右對齊 (RIGHT) 和 靠上對齊 (TOP)
+    textAlign(RIGHT, TOP); 
+    // 繪製文字
+    let scoreText = "Score: " + score; // 顯示 "Score: X"
+    let scoreMargin = 15; // 距離邊緣 15 像素
+    // 繪製座標：(width - margin, margin) 即可將文字頂部和右側內縮 margin 距離
+    text(scoreText, width - scoreMargin, scoreMargin); 
+  pop();
+
+
+  // 繪製星星的輔助函式 (為保持原樣保留在 draw 內)
   function drawStar(x, y, radius1, radius2, npoints, alpha) {
     let angle = TWO_PI / npoints;
     let halfAngle = angle / 2.0;
@@ -539,6 +557,10 @@ function mousePressed() {
 // 新增：爆破觸發函式
 function triggerBalloonExplosion(idx) {
   let c = circles[idx];
+  
+  // *** 增加分數 ***
+  score++; 
+
   // 爆破音效
   playPopSound();
   // 畫布震動
