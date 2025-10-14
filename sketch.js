@@ -11,8 +11,11 @@ let shakeOffsets = [];
 // 音效變數
 let popSound;
 
-// *** 新增：分數計數器 (score) ***
+// *** 計分與遊戲狀態變數 (新增/修改) ***
 let score = 0; 
+let gameState = 'PLAYING'; // 'PLAYING', 'GAMEOVER'
+const gameDuration = 30; // 遊戲總時長 (秒)
+let timerStart; // 記錄遊戲開始的時間戳 (millis())
 
 // 爆破粒子類別
 // 強化爆破粒子特效：增加數量、亮度、尺寸、慢速消失
@@ -38,7 +41,7 @@ class Particle {
     this.y += this.vy;
     this.vx *= 0.91;
     this.vy *= 0.91;
-    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
+    this.alpha -= 1.4; // 粒子壽命：約 3 秒
   }
   show() {
     fill(this.color[0], this.color[1], this.color[2], this.alpha);
@@ -59,7 +62,7 @@ class Particle {
   }
 }
 
-// 小圓粒子類別（取代小方塊）
+// 小圓粒子類別
 class CircleParticle {
   constructor(x, y, color) {
     this.x = x;
@@ -68,7 +71,6 @@ class CircleParticle {
     let speed = random(22, 44);
     this.vx = cos(angle) * speed;
     this.vy = sin(angle) * speed;
-    // 讓粒子更大
     this.size = random(48, 88);
     this.color = [
       min(255, color[0] + 30),
@@ -76,15 +78,14 @@ class CircleParticle {
       min(255, color[2] + 30)
     ];
     this.alpha = 255;
-    this.decayRate = 1.4; // *** 設置 3 秒消失速率 ***
+    this.decayRate = 1.4; // 粒子壽命：約 3 秒
   }
   update() {
     this.x += this.vx;
     this.y += this.vy;
     this.vx *= 0.91;
     this.vy *= 0.91;
-    // 讓粒子停留更久，減緩透明度衰減
-    this.alpha -= this.decayRate; // *** 使用 3 秒消失速率 ***
+    this.alpha -= this.decayRate; 
   }
   show() {
     noStroke();
@@ -123,7 +124,7 @@ class BurstCircleParticle {
     this.y += this.vy;
     this.vx *= 0.93;
     this.vy *= 0.93;
-    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
+    this.alpha -= 1.4; // 粒子壽命：約 3 秒
   }
   show() {
     noStroke();
@@ -138,7 +139,7 @@ class BurstCircleParticle {
   }
 }
 
-// 新增：小方塊旋轉噴濺粒子類別
+// 小方塊旋轉噴濺粒子類別
 class BurstBoxParticle {
   constructor(x, y, color, angle, speed) {
     this.x = x;
@@ -160,7 +161,7 @@ class BurstBoxParticle {
     this.y += this.vy;
     this.vx *= 0.92;
     this.vy *= 0.92;
-    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
+    this.alpha -= 1.4; // 粒子壽命：約 3 秒
     this.rotation += this.rotationSpeed;
   }
   show() {
@@ -179,7 +180,7 @@ class BurstBoxParticle {
   }
 }
 
-// 新增：爆炸閃光粒子特效類別
+// 爆炸閃光粒子特效類別
 class FlashParticle {
   constructor(x, y, color) {
     this.x = x;
@@ -187,7 +188,7 @@ class FlashParticle {
     this.size = random(120, 260);
     this.color = color;
     this.alpha = 180;
-    this.decay = 1.0; // 稍微快一點，確保閃光效果不會持續太久 (180/180=1s, 180/1.0=180幀=3s)
+    this.decay = 1.0; 
     this.angle = random(TWO_PI);
     this.rays = floor(random(8, 16));
   }
@@ -216,7 +217,7 @@ class FlashParticle {
   }
 }
 
-// 新增：破掉特效類別
+// 破掉特效類別
 class ShardParticle {
   constructor(x, y, color) {
     this.x = x;
@@ -241,7 +242,7 @@ class ShardParticle {
     this.y += this.vy;
     this.vx *= 0.92;
     this.vy *= 0.92;
-    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
+    this.alpha -= 1.4; // 粒子壽命：約 3 秒
     this.rotation += this.rotationSpeed;
   }
   show() {
@@ -266,7 +267,7 @@ class ShardParticle {
   }
 }
 
-// 新增：超級明顯的爆破粒子特效
+// 超級明顯的爆破粒子特效
 class MegaBlastParticle {
   constructor(x, y, color) {
     this.x = x;
@@ -282,10 +283,10 @@ class MegaBlastParticle {
       min(255, color[2] + 120)
     ];
     this.alpha = 255;
-    this.grow = random(1.005, 1.015); // 稍微調慢生長速度以配合長壽命
-    this.shrink = random(0.985, 0.995); // 稍微調慢縮小速度
+    this.grow = random(1.005, 1.015);
+    this.shrink = random(0.985, 0.995);
     this.life = 0;
-    this.maxLife = random(180, 200); // *** 調整：壽命約 3 秒 (180 幀) ***
+    this.maxLife = random(180, 200); 
   }
   update() {
     this.x += this.vx;
@@ -298,7 +299,7 @@ class MegaBlastParticle {
     } else if (this.life > this.maxLife * 0.75) {
       this.size *= this.shrink;
     }
-    this.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
+    this.alpha -= 1.4; // 粒子壽命：約 3 秒
     this.life++;
   }
   show() {
@@ -317,14 +318,12 @@ class MegaBlastParticle {
 }
 
 let particles = [];
-let circleParticles = []; // 華麗彩色粒子
-let burstCircles = [];   // 新增：噴濺小圓粒子
-let burstBoxParticles = []; // 新增：儲存小方塊旋轉粒子
-let flashParticles = []; // 新增：爆炸閃光粒子陣列
-let shardParticles = []; // 破掉特效陣列
-let megaBlastParticles = []; // 超級明顯粒子特效陣列
-let explosionTimer = 0;
-let explosionInterval = 60; // 每60幀嘗試爆破一次
+let circleParticles = []; 
+let burstCircles = [];   
+let burstBoxParticles = []; 
+let flashParticles = []; 
+let shardParticles = []; 
+let megaBlastParticles = []; 
 let circles = [];
 
 // 載入音效
@@ -332,16 +331,15 @@ function preload() {
   popSound = loadSound('balloon-pop-ni-sound-1-00-01.mp3');
 }
 
-function setup() { //setup函式只會執行一次
-  createCanvas(windowWidth, windowHeight);//建立一個全螢幕的畫布
+// 產生氣球的專用函式
+function setupCircles() {
   colorMode(HSB, 360, 100, 100, 255); // 夢幻色彩
-  // 產生 100 個圓，每個圓顏色都不一樣且鮮艷
   for (let i = 0; i < 100; i++) {
     let x = random(width);
     let y = random(height);
     let d = random(40, 200);
-    let alpha = random(180, 255); // 提高透明度下限
-    // 夢幻色調：隨機漸層、亮色、柔和
+    let alpha = random(180, 255); 
+    // 夢幻色調
     let baseHue = random(0, 360);
     let r = color(baseHue, random(60, 100), random(80, 100), alpha);
     let g = color((baseHue + random(20, 60)) % 360, random(40, 80), random(80, 100), alpha);
@@ -355,121 +353,81 @@ function setup() { //setup函式只會執行一次
   colorMode(RGB, 255, 255, 255, 255); // 還原
 }
 
+// 重新開始遊戲，初始化所有參數
+function resetGame() {
+    score = 0;
+    circles = [];
+    particles = [];
+    circleParticles = [];
+    burstCircles = [];
+    burstBoxParticles = [];
+    flashParticles = [];
+    shardParticles = [];
+    megaBlastParticles = [];
+    
+    // 重新產生氣球
+    setupCircles(); 
+    
+    gameState = 'PLAYING';
+    timerStart = millis(); // 重設計時器開始時間
+}
+
+
+function setup() { //setup函式只會執行一次
+  createCanvas(windowWidth, windowHeight);//建立一個全螢幕的畫布
+  resetGame(); // 遊戲開始時進行初始化
+}
+
+
 function draw() {  //draw函式會一直重複執行，形成動畫效果
-  // 1. 繪製背景 (只做一次)
   background('#b8dbd9');//設定背景顏色為藍色
 
-  // 2. 畫布震動效果 (需要在背景之前，因為它影響整個畫布的 translate)
+  // 畫布震動效果
   if (canvasShake > 0) {
     translate(random(-canvasShake, canvasShake), random(-canvasShake, canvasShake));
     canvasShake--;
   }
 
-  // 3. 衝擊波圓環
-  if (shockwave) {
-    noFill();
-    stroke(255,255,200, shockwave.alpha);
-    strokeWeight(16 * shockwave.alpha/255);
-    ellipse(shockwave.x, shockwave.y, shockwave.r, shockwave.r);
-    shockwave.r += 32;
-    shockwave.alpha -= 1.4; // *** 調整：約 3 秒消失 ***
-    if (shockwave.alpha <= 0) shockwave = null;
-    noStroke();
-  }
+  if (gameState === 'PLAYING') {
+    // 1. 處理所有粒子特效 (即使遊戲結束也繼續顯示直到消失)
+    drawParticles();
 
-  // 4. 全螢幕閃光
-  if (flashFrame > 0) {
-    fill(255,255,255, 120 * (flashFrame/flashMax));
-    rect(0,0,width,height);
-    flashFrame--;
-  }
+    // 2. 處理衝擊波和閃光
+    drawEffects();
+    
+    // 3. 繪製並移動氣球
+    drawCircles();
 
-  // 5. 更新與顯示所有粒子 (在氣球和背景之上繪製，確保粒子不被覆蓋)
-  
-  // 更新與顯示所有粒子
-  for (let i = particles.length - 1; i >= 0; i--) {
-    particles[i].update();
-    particles[i].show();
-    if (particles[i].isDead()) {
-      particles.splice(i, 1);
-    }
+    // 4. 繪製浮水印、計時器和分數
+    drawTimerAndScore();
+  } else if (gameState === 'GAMEOVER') {
+    // 遊戲結束時：繼續繪製粒子特效，顯示結束畫面
+    drawParticles();
+    drawGameOver();
   }
+}
 
-  // 更新與顯示所有小圓粒子
-  for (let i = circleParticles.length - 1; i >= 0; i--) {
-    circleParticles[i].update();
-    circleParticles[i].show();
-    if (circleParticles[i].isDead()) {
-      circleParticles.splice(i, 1);
-    }
-  }
 
-  // 更新與顯示所有小圓噴濺粒子
-  for (let i = burstCircles.length - 1; i >= 0; i--) {
-    burstCircles[i].update();
-    burstCircles[i].show();
-    if (burstCircles[i].isDead()) {
-      burstCircles.splice(i, 1);
-    }
-  }
-
-  // 更新與顯示所有小方塊旋轉噴濺粒子
-  for (let i = burstBoxParticles.length - 1; i >= 0; i--) {
-    burstBoxParticles[i].update();
-    burstBoxParticles[i].show();
-    if (burstBoxParticles[i].isDead()) {
-      burstBoxParticles.splice(i, 1);
-    }
-  }
-
-  // 更新與顯示所有爆炸閃光粒子
-  for (let i = flashParticles.length - 1; i >= 0; i--) {
-    flashParticles[i].update();
-    flashParticles[i].show();
-    if (flashParticles[i].isDead()) {
-      flashParticles.splice(i, 1);
-    }
-  }
-
-  // 更新與顯示所有破掉特效粒子
-  for (let i = shardParticles.length - 1; i >= 0; i--) {
-    shardParticles[i].update();
-    shardParticles[i].show();
-    if (shardParticles[i].isDead()) {
-      shardParticles.splice(i, 1);
-    }
-  }
-
-  // 更新與顯示所有超級明顯的爆破粒子 (確保它們在最上層)
-  for (let i = megaBlastParticles.length - 1; i >= 0; i--) {
-    megaBlastParticles[i].update();
-    megaBlastParticles[i].show();
-    if (megaBlastParticles[i].isDead()) {
-      megaBlastParticles.splice(i, 1);
-    }
-  }
-  
-  // 6. 繪製氣球
-  noStroke(); // 取消外框線
-  // 讓每個圓由下往上飄，越大越快，越小越慢，移出畫面頂端後從底部重新出現
+// 繪製氣球
+function drawCircles() {
+  noStroke(); 
   for (let i = 0; i < circles.length; i++) {
     let c = circles[i];
-    // 速度與圓的大小成正比，最小速度 0.5，最大速度 5
+    // 移動氣球
     let speed = map(c.d, 20, 120, 0.5, 5);
     c.y -= speed;
     if (c.y < -c.d/2) {
       c.y = height + c.d/2;
     }
-    // 夢幻色彩
+    // 繪製氣球
     fill(c.r, c.g, c.b, c.alpha);
     ellipse(c.x, c.y, c.d, c.d);
-    // 在圓的左上方(圓內)加上一個星星圖案（在方塊右側，不擋住方塊）
+    
+    // 繪製方塊
     let boxOffset = c.d * 0.25;
     let boxSize = c.d * 0.2;
     let bx = c.x - boxOffset - boxSize/2;
     let by = c.y - boxOffset - boxSize/2;
-
-    // 保留原本的立體方塊
     // 陰影
     noStroke();
     fill(30, 30, 30, c.alpha * 0.7);
@@ -481,54 +439,134 @@ function draw() {  //draw函式會一直重複執行，形成動畫效果
     fill(200, 200, 200, c.alpha * 0.5);
     rect(bx + boxSize*0.08, by + boxSize*0.08, boxSize*0.5, boxSize*0.18, 2);
   }
+}
 
-  // *** 7. 繪製左上角數字 (浮水印) ***
-  push();
-    // 數字顏色 (較淺的浮水印)
-    fill(100, 100, 100, 180); // 深灰色且有半透明度
-    // 數字大小
-    textSize(24);
-    // 文字對齊方式：靠左對齊 (LEFT) 和 靠上對齊 (TOP)
-    textAlign(LEFT, TOP); 
-    // 繪製文字
-    let watermarkText = "414730191";
-    let margin = 15; // 距離邊緣 15 像素
-    // 繪製座標：(margin, margin) 即可將文字頂部和左側內縮 margin 距離
-    text(watermarkText, margin, margin); 
-  pop();
-
-  // *** 8. 繪製右上角分數 ***
-  push();
-    // 分數顏色
-    fill(50); // 深灰色
-    // 分數大小
-    textSize(32); // 將分數字體放大
-    // 文字對齊方式：靠右對齊 (RIGHT) 和 靠上對齊 (TOP)
-    textAlign(RIGHT, TOP); 
-    // 繪製文字
-    let scoreText = "Score: " + score; // 顯示 "Score: X"
-    let scoreMargin = 15; // 距離邊緣 15 像素
-    // 繪製座標：(width - margin, margin) 即可將文字頂部和右側內縮 margin 距離
-    text(scoreText, width - scoreMargin, scoreMargin); 
-  pop();
-
-
-  // 繪製星星的輔助函式 (為保持原樣保留在 draw 內)
-  function drawStar(x, y, radius1, radius2, npoints, alpha) {
-    let angle = TWO_PI / npoints;
-    let halfAngle = angle / 2.0;
-    fill(255, 215, 0, alpha); // 金黃色
+// 繪製衝擊波和閃光
+function drawEffects() {
+  // 衝擊波圓環
+  if (shockwave) {
+    noFill();
+    stroke(255,255,200, shockwave.alpha);
+    strokeWeight(16 * shockwave.alpha/255);
+    ellipse(shockwave.x, shockwave.y, shockwave.r, shockwave.r);
+    shockwave.r += 32;
+    shockwave.alpha -= 1.4; 
+    if (shockwave.alpha <= 0) shockwave = null;
     noStroke();
-    beginShape();
-    for (let a = 0; a < TWO_PI; a += angle) {
-      let sx = x + cos(a) * radius1;
-      let sy = y + sin(a) * radius1;
-      vertex(sx, sy);
-      sx = x + cos(a + halfAngle) * radius2;
-      sy = y + sin(a + halfAngle) * radius2;
-      vertex(sx, sy);
+  }
+
+  // 全螢幕閃光
+  if (flashFrame > 0) {
+    fill(255,255,255, 120 * (flashFrame/flashMax));
+    rect(0,0,width,height);
+    flashFrame--;
+  }
+}
+
+// 繪製和更新粒子 (獨立出來確保粒子總是在氣球之上)
+function drawParticles() {
+  let allParticles = [particles, circleParticles, burstCircles, burstBoxParticles, flashParticles, shardParticles, megaBlastParticles];
+
+  for (let list of allParticles) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      list[i].update();
+      list[i].show();
+      if (list[i].isDead()) {
+        list.splice(i, 1);
+      }
     }
-    endShape(CLOSE);
+  }
+}
+
+// 繪製計時器和分數
+function drawTimerAndScore() {
+  let margin = 15;
+  
+  // 計算剩餘時間
+  let elapsedTime = (millis() - timerStart) / 1000;
+  let timeLeft = max(0, gameDuration - elapsedTime);
+  
+  // 檢查遊戲是否結束
+  if (timeLeft <= 0) {
+    gameState = 'GAMEOVER';
+  }
+
+  // *** 1. 繪製左上角數字 (浮水印) ***
+  push();
+    fill(100, 100, 100, 180); // 浮水印顏色
+    textSize(24);
+    textAlign(LEFT, TOP); 
+    text("414730191", margin, margin); 
+  pop();
+
+  // *** 2. 繪製右上角分數 ***
+  push();
+    fill(50); // 深灰色
+    textSize(32); 
+    textAlign(RIGHT, TOP); 
+    text("Score: " + score, width - margin, margin); 
+  pop();
+
+  // *** 3. 繪製計時器 (上方中央) ***
+  push();
+    fill(50); // 深灰色
+    textSize(48); // 放大計時器
+    textAlign(CENTER, TOP);
+    // 將時間格式化為秒 (取整數)
+    let timerText = nf(ceil(timeLeft), 2); // nf(number, digits) 確保至少兩位數
+    
+    // 剩餘 5 秒以下變紅色警告
+    if (timeLeft < 5) {
+      fill(255, 0, 0); 
+    }
+    
+    text(timerText, width / 2, margin);
+  pop();
+}
+
+// 遊戲結束畫面
+function drawGameOver() {
+    // 遮罩效果
+    fill(0, 0, 0, 150); // 半透明黑色
+    rect(0, 0, width, height);
+    
+    push();
+        // 標題
+        fill(255, 255, 255);
+        textSize(80);
+        textAlign(CENTER, CENTER);
+        text("GAME OVER", width / 2, height * 0.35);
+
+        // 最終成績
+        fill(255, 215, 0); // 金色
+        textSize(64);
+        text("FINAL SCORE: " + score, width / 2, height * 0.55);
+        
+        // 提示重玩
+        fill(200, 200, 200);
+        textSize(24);
+        text("Click anywhere to restart", width / 2, height * 0.75);
+    pop();
+}
+
+
+function mousePressed() {
+  if (gameState === 'GAMEOVER') {
+    // 遊戲結束時，點擊重新開始
+    resetGame();
+  } else if (gameState === 'PLAYING') {
+    // 遊戲進行中，檢查是否點擊到某個氣球
+    for (let i = 0; i < circles.length; i++) {
+      let c = circles[i];
+      let dx = mouseX - c.x;
+      let dy = mouseY - c.y;
+      let d = sqrt(dx * dx + dy * dy);
+      if (d < c.d / 2) {
+        // 觸發爆破
+        triggerBalloonExplosion(i);
+        break;
+      }
+    }
   }
 }
 
@@ -539,22 +577,7 @@ function playPopSound() {
   }
 }
 
-function mousePressed() {
-  // 檢查是否點擊到某個氣球
-  for (let i = 0; i < circles.length; i++) {
-    let c = circles[i];
-    let dx = mouseX - c.x;
-    let dy = mouseY - c.y;
-    let d = sqrt(dx * dx + dy * dy);
-    if (d < c.d / 2) {
-      // 觸發爆破
-      triggerBalloonExplosion(i);
-      break;
-    }
-  }
-}
-
-// 新增：爆破觸發函式
+// 爆破觸發函式
 function triggerBalloonExplosion(idx) {
   let c = circles[idx];
   
@@ -597,9 +620,9 @@ function triggerBalloonExplosion(idx) {
   }
   pop();
 
-  // 強化爆破特效：增加數量
+  // 產生各種粒子... (保持不變)
   let baseAngle = random(TWO_PI);
-  for (let i = 0; i < 320; i++) { // 增加火花數量
+  for (let i = 0; i < 320; i++) { 
     let angle = baseAngle + random(-PI/2, PI/2);
     let speed = random(72, 140);
     let colorArr = [c.r, c.g, c.b];
@@ -610,28 +633,23 @@ function triggerBalloonExplosion(idx) {
     p.size = random(100, 180);
     particles.push(p);
   }
-  // 產生亮色火花粒子
   for (let i = 0; i < 80; i++) {
     let colorArr = [255, 255, random(180,255)];
     let p = new Particle(c.x, c.y, colorArr);
     p.isSpark = true;
     particles.push(p);
   }
-  // 產生煙霧粒子
   for (let i = 0; i < 120; i++) {
     let color = [random(180,220), random(180,220), random(180,220)];
     let p = new Particle(c.x, c.y, color);
     p.isSmoke = true;
     particles.push(p);
   }
-  // 產生同顏色小圓粒子（華麗漸層/彩虹）
   for (let i = 0; i < 96; i++) {
     let colorArr = [c.r, c.g, c.b];
     let cp = new CircleParticle(c.x, c.y, colorArr);
     circleParticles.push(cp);
   }
-
-  // 產生同顏色小方塊旋轉噴濺粒子
   let burstCount = 36;
   for (let i = 0; i < burstCount; i++) {
     let angle = map(i, 0, burstCount, 0, TWO_PI);
@@ -639,8 +657,6 @@ function triggerBalloonExplosion(idx) {
     let color = [c.r, c.g, c.b];
     burstBoxParticles.push(new BurstBoxParticle(c.x, c.y, color, angle, speed));
   }
-
-  // 產生同顏色小圓噴濺粒子
   let burstCircleCount = 36;
   for (let i = 0; i < burstCircleCount; i++) {
     let angle = map(i, 0, burstCircleCount, 0, TWO_PI);
@@ -648,8 +664,6 @@ function triggerBalloonExplosion(idx) {
     let color = [c.r, c.g, c.b];
     burstCircles.push(new BurstCircleParticle(c.x, c.y, color, angle, speed));
   }
-
-  // 新增：產生爆炸閃光粒子特效
   for (let i = 0; i < 3; i++) {
     let colorArr = [255, 255, 220];
     flashParticles.push(new FlashParticle(c.x, c.y, colorArr));
@@ -658,13 +672,9 @@ function triggerBalloonExplosion(idx) {
     let colorArr = [c.r, c.g, c.b];
     flashParticles.push(new FlashParticle(c.x, c.y, colorArr));
   }
-
-  // 新增：產生破掉特效粒子
   for (let i = 0; i < 24; i++) {
     shardParticles.push(new ShardParticle(c.x, c.y, [c.r, c.g, c.b]));
   }
-
-  // 新增：產生超級明顯的爆破粒子特效
   for (let i = 0; i < 12; i++) {
     megaBlastParticles.push(new MegaBlastParticle(c.x, c.y, [c.r, c.g, c.b]));
   }
